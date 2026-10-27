@@ -1,6 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Miclea_Andreea_Lab2.Models;
 
@@ -20,32 +18,41 @@ namespace Miclea_Andreea_Lab2.Pages.BookPages
         public int BookID { get; set; }
         public int CategoryID { get; set; }
 
-        // filtrarea dupa autor (de la lab 2)
-        [BindProperty(SupportsGet = true)]
-        public int? AuthorID { get; set; }
-        public SelectList AuthorList { get; set; } = default!;
+        // pasul 8: pentru sortare
+        public string TitleSort { get; set; } = "";
+        public string AuthorSort { get; set; } = "";
 
-        public async Task OnGetAsync(int? id, int? categoryID)
+        // pasul 11: textul cautat
+        public string CurrentFilter { get; set; } = "";
+
+        // pasii 9 si 12: sortOrder si searchString
+        public async Task OnGetAsync(int? id, int? categoryID, string? sortOrder, string? searchString)
         {
             BookD = new BookData();
-            AuthorList = new SelectList(await _context.Author.ToListAsync(), "ID", "FullName");
 
-            var books = _context.Book
-                .Include(b => b.Publisher)
+            TitleSort = String.IsNullOrEmpty(sortOrder) ? "title_desc" : "";
+            AuthorSort = sortOrder == "author" ? "author_desc" : "author";
+
+            CurrentFilter = searchString ?? "";
+
+            BookD.Books = await _context.Book
                 .Include(b => b.Author)
+                .Include(b => b.Publisher)
                 .Include(b => b.BookCategories)
                     .ThenInclude(b => b.Category)
                 .AsNoTracking()
                 .OrderBy(b => b.Title)
-                .AsQueryable();
+                .ToListAsync();
 
-            if (AuthorID != null)
+            // cautare dupa titlu sau dupa numele autorului
+            if (!String.IsNullOrEmpty(searchString))
             {
-                books = books.Where(b => b.AuthorID == AuthorID);
+                BookD.Books = BookD.Books.Where(s =>
+                    (s.Author != null &&
+                        (s.Author.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+                        || s.Author.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase)))
+                    || s.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase));
             }
-
-            BookD.Books = await books.ToListAsync();
-            Book = BookD.Books.ToList();
 
             if (id != null)
             {
@@ -56,6 +63,25 @@ namespace Miclea_Andreea_Lab2.Pages.BookPages
                     BookD.Categories = book.BookCategories.Select(s => s.Category);
                 }
             }
+
+            // sortare
+            switch (sortOrder)
+            {
+                case "title_desc":
+                    BookD.Books = BookD.Books.OrderByDescending(s => s.Title);
+                    break;
+                case "author_desc":
+                    BookD.Books = BookD.Books.OrderByDescending(s => s.Author != null ? s.Author.FullName : "");
+                    break;
+                case "author":
+                    BookD.Books = BookD.Books.OrderBy(s => s.Author != null ? s.Author.FullName : "");
+                    break;
+                default:
+                    BookD.Books = BookD.Books.OrderBy(s => s.Title);
+                    break;
+            }
+
+            Book = BookD.Books.ToList();
         }
     }
 }
