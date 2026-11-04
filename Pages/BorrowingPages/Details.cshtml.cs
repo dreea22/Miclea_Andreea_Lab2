@@ -3,35 +3,38 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Miclea_Andreea_Lab2.Models;
 
-namespace Miclea_Andreea_Lab2.Pages.BorrowingPages;
-
-public class DetailsModel : PageModel
+namespace Miclea_Andreea_Lab2.Pages.BorrowingPages
 {
-    private readonly Miclea_Andreea_Lab2Context _context;
-    public DetailsModel(Miclea_Andreea_Lab2Context context)
+    public class DetailsModel : PageModel
     {
-        _context = context;
-    }
+        private readonly Miclea_Andreea_Lab2Context _context;
 
-    public Borrowing Borrowing { get; set; } = default!;
-
-    public async Task<IActionResult> OnGetAsync(int? id)
-    {
-        if (id is null)
+        public DetailsModel(Miclea_Andreea_Lab2Context context)
         {
-            return NotFound();
+            _context = context;
         }
 
-        var borrowing = await _context.Borrowing.FirstOrDefaultAsync(m => m.ID == id);
-        if (borrowing is null)
+        public Borrowing Borrowing { get; set; } = default!;
+
+        public async Task<IActionResult> OnGetAsync(int? id)
         {
-            return NotFound();
-        }
-        else
-        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var borrowing = await _context.Borrowing
+                .Include(b => b.Member)
+                .Include(b => b.Book)
+                    .ThenInclude(b => b.Author)
+                .FirstOrDefaultAsync(m => m.ID == id);
+
+            if (borrowing == null)
+            {
+                return NotFound();
+            }
             Borrowing = borrowing;
+            return Page();
         }
-
-        return Page();
     }
 }

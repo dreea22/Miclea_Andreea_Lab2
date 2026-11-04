@@ -3,55 +3,57 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Miclea_Andreea_Lab2.Models;
 
-namespace Miclea_Andreea_Lab2.Pages.BorrowingPages;
-
-public class DeleteModel : PageModel
+namespace Miclea_Andreea_Lab2.Pages.BorrowingPages
 {
-    private readonly Miclea_Andreea_Lab2Context _context;
-
-    public DeleteModel(Miclea_Andreea_Lab2Context context)
+    public class DeleteModel : PageModel
     {
-        _context = context;
-    }
+        private readonly Miclea_Andreea_Lab2Context _context;
 
-    [BindProperty]
-    public Borrowing Borrowing { get; set; } = default!;
-
-    public async Task<IActionResult> OnGetAsync(int? id)
-    {
-        if (id is null)
+        public DeleteModel(Miclea_Andreea_Lab2Context context)
         {
-            return NotFound();
+            _context = context;
         }
 
-        var borrowing = await _context.Borrowing.FirstOrDefaultAsync(m => m.ID == id);
-        if (borrowing is null)
+        [BindProperty]
+        public Borrowing Borrowing { get; set; } = default!;
+
+        public async Task<IActionResult> OnGetAsync(int? id)
         {
-            return NotFound();
-        }
-        else
-        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var borrowing = await _context.Borrowing
+                .Include(b => b.Member)
+                .Include(b => b.Book)
+                    .ThenInclude(b => b.Author)
+                .FirstOrDefaultAsync(m => m.ID == id);
+
+            if (borrowing == null)
+            {
+                return NotFound();
+            }
             Borrowing = borrowing;
+            return Page();
         }
 
-        return Page();
-    }
-
-    public async Task<IActionResult> OnPostAsync(int? id)
-    {
-        if (id is null)
+        public async Task<IActionResult> OnPostAsync(int? id)
         {
-            return NotFound();
-        }
+            if (id == null)
+            {
+                return NotFound();
+            }
 
-        var borrowing = await _context.Borrowing.FindAsync(id);
-        if (borrowing != null)
-        {
-            Borrowing = borrowing;
-            _context.Borrowing.Remove(Borrowing);
-            await _context.SaveChangesAsync();
-        }
+            var borrowing = await _context.Borrowing.FindAsync(id);
+            if (borrowing != null)
+            {
+                Borrowing = borrowing;
+                _context.Borrowing.Remove(Borrowing);
+                await _context.SaveChangesAsync();
+            }
 
-        return RedirectToPage("./Index");
+            return RedirectToPage("./Index");
+        }
     }
 }
